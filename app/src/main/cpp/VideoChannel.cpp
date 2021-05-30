@@ -21,6 +21,10 @@ void *task_video_decode(void *args) {
 void VideoChannel::video_decode() {
     AVPacket * pkt = 0;
     while (isPlaying){
+        if (isPlaying && frames.size() > 100) {
+            av_usleep(10 * 1000); // 单位 ：microseconds 微妙 10毫秒
+            continue;
+        }
         int r = packets.getQueueAndDel(pkt);
         if (!isPlaying){
             break;
@@ -34,15 +38,21 @@ void VideoChannel::video_decode() {
             break;
         }
         AVFrame *frame = av_frame_alloc();
-        r = avcodec_send_frame(codecContext,frame);
+        r = avcodec_receive_frame(codecContext,frame);
         if (r == AVERROR(EAGAIN)){
             continue;
         }else if(r != 0){
+            if (frame) {
+                releaseAVFrame(&frame);
+            }
             break;
         }
         frames.insertToQueue(frame);
+        av_packet_unref(pkt); // 减1 = 0 释放成员指向的堆区
+        releaseAVPacket(&pkt); // 释放AVPacket * 本身的堆区空间
     }
-    releaseAVPacket(&pkt);
+    av_packet_unref(pkt); // 减1 = 0 释放成员指向的堆区
+    releaseAVPacket(&pkt); // 释放AVPacket * 本身的堆区空间
 }
 
 void *task_video_play(void *args) {
@@ -94,13 +104,14 @@ void VideoChannel::video_play() {
                        codecContext->height,
                        dst_linesize[0]);
         //渲染完成释放
-        releaseAVFrame(&frame);
+        av_frame_unref(frame); // 减1 = 0 释放成员指向的堆区
+        releaseAVFrame(&frame); // 释放AVFrame * 本身的堆区空间
     }
-    //简单释放
-    releaseAVFrame(&frame);
+    av_frame_unref(frame); // 减1 = 0 释放成员指向的堆区
+    releaseAVFrame(&frame); // 释放AVFrame * 本身的堆区空间
     isPlaying = false;
-    av_free(&dst_data);
-    sws_freeContext(sws_ctx);
+    av_free(&dst_data[0]);
+    sws_freeContext(sws_ctx); // free(sws_ctx); FFmpeg必须使用人家的函数释放，直接崩溃
 
 }
 

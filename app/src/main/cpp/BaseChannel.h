@@ -4,6 +4,7 @@
 #include "safe_queue.h"
 extern "C"{
 #include <libavcodec/avcodec.h>
+#include <libavutil/time.h>
 }
 #ifndef KEVINPLAYER_BASECHANNEL_H
 #define KEVINPLAYER_BASECHANNEL_H

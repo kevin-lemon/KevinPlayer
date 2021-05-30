@@ -19,7 +19,7 @@ private:
     pthread_t pid_audio_play;
     SLObjectItf engineObject = 0;
     SLEngineItf engineInterface = 0;
-    SLEngineItf bqPlayerPlay = 0;
+    SLPlayItf bqPlayerPlay = 0;
     SLObjectItf outputMixObject = 0;
     SLObjectItf bqPlayerObject = 0;
     SLAndroidSimpleBufferQueueItf bpPlayerBufferQueue;

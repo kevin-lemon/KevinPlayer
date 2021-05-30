@@ -28,6 +28,10 @@ void *task_audio_decode(void *args) {
 void AudioChannel::audio_decode() {
     AVPacket * pkt = 0;
     while (isPlaying){
+        if (isPlaying && frames.size() > 100) {
+            av_usleep(10 * 1000); // 单位 ：microseconds 微妙 10毫秒
+            continue;
+        }
         int ret = packets.getQueueAndDel(pkt);
         if (!isPlaying){
             break;
@@ -45,11 +49,17 @@ void AudioChannel::audio_decode() {
         if (ret == AVERROR(EAGAIN)){
             continue;
         }else if(ret != 0){
+            if (frame) {
+                releaseAVFrame(&frame);
+            }
             break;
         }
         frames.insertToQueue(frame);
+        av_packet_unref(pkt); // 减1 = 0 释放成员指向的堆区
+        releaseAVPacket(&pkt); // 释放AVPacket * 本身的堆区空间
     }
-    releaseAVPacket(&pkt);
+    av_packet_unref(pkt); // 减1 = 0 释放成员指向的堆区
+    releaseAVPacket(&pkt); // 释放AVPacket * 本身的堆区空间
 }
 
 void *task_audio_play(void *args) {
@@ -123,10 +133,13 @@ void AudioChannel::audio_play() {
     if (SL_RESULT_SUCCESS != result){
         return;
     }
-//    (*bpPlayerBufferQueue)->RegisterCallback(bpPlayerBufferQueue,
-//                                             bqPlayerCallback,);
+    (*bpPlayerBufferQueue)->RegisterCallback(bpPlayerBufferQueue,  // 传入刚刚设置好的队列
+                                             bqPlayerCallback,  // 回调函数
+                                             this); // 给回调函数的参数
 
+    (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_PLAYING);
 
+    bqPlayerCallback(bpPlayerBufferQueue, this);
 }
 
 
@@ -168,5 +181,7 @@ int AudioChannel::getPCM() {
         pcm_data_size = samples_per_channel * out_sample_size * out_channels;
         break;
     }
+    av_frame_unref(frame); // 减1 = 0 释放成员指向的堆区
+    releaseAVFrame(&frame); // 释放AVFrame * 本身的堆区空间
     return pcm_data_size;
 }

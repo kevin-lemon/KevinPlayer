@@ -167,6 +167,14 @@ void *task_start(void *args) {
 
 void MediaPlayer::start_() {
     while (isPlaying){
+        if (video_channel && video_channel->packets.size() > 100) {
+            av_usleep(10 * 1000); // 单位 ：microseconds 微妙 10毫秒
+            continue;
+        }
+        if (audio_channel && audio_channel->packets.size() > 100) {
+            av_usleep(10 * 1000); // 单位 ：microseconds 微妙 10毫秒
+            continue;
+        }
         //AVPacket可能是音频也可能是视频，压缩包
         AVPacket * packet = av_packet_alloc();
         int r = av_read_frame(formatContext,packet);
