@@ -126,6 +126,9 @@ void MediaPlayer::prepare_() {
         if (parameters->codec_type == AVMediaType::AVMEDIA_TYPE_AUDIO) { // 音频
             audio_channel = new AudioChannel(i,codecContext,time);
         } else if (parameters->codec_type == AVMediaType::AVMEDIA_TYPE_VIDEO) { // 视频
+            if (stream->disposition & AV_DISPOSITION_ATTACHED_PIC){
+                continue;
+            }
             AVRational  fps_rational = stream->avg_frame_rate;
             int fps = av_q2d(fps_rational);
             video_channel = new VideoChannel(i,codecContext,time,fps);
