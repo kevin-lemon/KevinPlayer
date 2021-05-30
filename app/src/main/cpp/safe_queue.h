@@ -12,12 +12,14 @@ template<typename T>
 class SafeQueue{
 private:
     typedef void (*ReleaseCallback)(T *);
+    typedef void (*SyncCallback)(queue<T> &);
 private:
     queue<T> queue;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     int work;
     ReleaseCallback releaseCallback;
+    SyncCallback syncCallback;
 public:
     SafeQueue(){
         pthread_mutex_init(&mutex,0);
@@ -84,6 +86,16 @@ public:
 
     void setReleaseCallback(ReleaseCallback callback){
         this->releaseCallback = callback;
+    }
+
+    void setSyncCallback(SyncCallback callback){
+        this->syncCallback = callback;
+    }
+
+    void syncCastPackage(){
+        pthread_mutex_lock(&mutex);
+        syncCallback(queue);
+        pthread_mutex_unlock(&mutex);
     }
 
 };

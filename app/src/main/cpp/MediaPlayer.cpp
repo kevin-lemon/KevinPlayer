@@ -119,13 +119,16 @@ void MediaPlayer::prepare_() {
             return;
         }
 
+        AVRational time = stream->time_base;
         /**
          * TODO 第十步：从编解码器参数中，获取流的类型 codec_type  ===  音频 视频
          */
         if (parameters->codec_type == AVMediaType::AVMEDIA_TYPE_AUDIO) { // 音频
-            audio_channel = new AudioChannel(i,codecContext);
+            audio_channel = new AudioChannel(i,codecContext,time);
         } else if (parameters->codec_type == AVMediaType::AVMEDIA_TYPE_VIDEO) { // 视频
-            video_channel = new VideoChannel(i,codecContext);
+            AVRational  fps_rational = stream->avg_frame_rate;
+            int fps = av_q2d(fps_rational);
+            video_channel = new VideoChannel(i,codecContext,time,fps);
             video_channel->setRenderCallback(renderCallback);
         }
         /**
@@ -185,7 +188,9 @@ void MediaPlayer::start_() {
                 audio_channel->packets.insertToQueue(packet);
             }
         } else if (r == AVERROR_EOF){//END OF FILE
-
+            if (video_channel->packets.empty() && audio_channel->packets.empty()) {
+                break; // 队列的数据被音频 视频 全部播放完毕了，我在退出
+            }
         }else{
             break;
         }
@@ -198,6 +203,7 @@ void MediaPlayer::start_() {
 void MediaPlayer::start() {
     isPlaying = true;
     if (video_channel){
+        video_channel->setAudioChannel(audio_channel);
         video_channel->start();
     }
     if (audio_channel){

@@ -3,10 +3,31 @@
 //
 
 #include "VideoChannel.h"
+#include "AudioChannel.h"
+void dropAVFrame(queue<AVFrame *> &frames ){
+    if (!frames.empty()){
+        AVFrame * frame = frames.front();
+        BaseChannel::releaseAVFrame(&frame);
+        frames.pop();
+    }
+}
 
-VideoChannel::VideoChannel(int stream_index,AVCodecContext *codecContext)
-        :BaseChannel(stream_index,codecContext){
-
+void dropAVPacket(queue<AVPacket * > &packets){
+    while (!packets.empty()){
+        AVPacket * packet = packets.front();
+        if (packet->flags != AV_PKT_FLAG_KEY){
+            BaseChannel::releaseAVPacket(&packet);
+            packets.pop();
+        } else{
+            break;
+        }
+    }
+}
+VideoChannel::VideoChannel(int stream_index,AVCodecContext *codecContext,AVRational time_rational,int fps)
+        :BaseChannel(stream_index,codecContext,time_rational),
+        fps(fps){
+    frames.setSyncCallback(dropAVFrame);
+    packets.setSyncCallback(dropAVPacket);
 }
 
 VideoChannel::~VideoChannel() {}
@@ -97,6 +118,29 @@ void VideoChannel::video_play() {
                   dst_data,
                   dst_linesize
         );
+        double extra_delay = frame->repeat_pict/(2*fps);
+        double fps_delay = 1.0/fps;
+        double real_delay = fps_delay + extra_delay;
+        double video_time = frame->best_effort_timestamp * av_q2d(time_base);
+        double audio_time = audio_channel->audio_time;
+        double time_diff = video_time - audio_time;
+        if (time_diff > 0){
+            if(time_diff > 1){
+                //说明音视频差距很大
+            } else {
+                //说明差值0-1之间差距不大
+                //单位微秒 * 1000000
+                av_usleep( (real_delay + time_diff) * 1000000);
+            }
+        } else if (time_diff < 0){
+            //0.05经验值
+            if(fabs(time_diff) <= 0.05){
+                frames.syncCastPackage();
+                continue;
+            }
+        } else{
+            //完全同步
+        }
         // SurfaceView ----- ANatvieWindows
         //数组被传递退化成指针
         renderCallback(dst_data[0],
@@ -133,4 +177,9 @@ void VideoChannel::stop(){
 void VideoChannel::setRenderCallback(RenderCallback renderCallback) {
     this->renderCallback = renderCallback;
 }
+
+void VideoChannel::setAudioChannel(AudioChannel * audioChannel) {
+    this->audio_channel = audioChannel;
+}
+
 

@@ -23,7 +23,6 @@ private:
     SLObjectItf outputMixObject = 0;
     SLObjectItf bqPlayerObject = 0;
     SLAndroidSimpleBufferQueueItf bpPlayerBufferQueue;
-
 public:
     int out_channels;
     int out_sample_size;
@@ -31,7 +30,8 @@ public:
     int out_buffers_size;
     uint8_t *out_buffers;
     SwrContext *swr_ctx;
-    AudioChannel(int stream_index,AVCodecContext *codecContext);
+    double audio_time = 0;
+    AudioChannel(int stream_index,AVCodecContext *codecContext,AVRational time_rational);
     ~AudioChannel();
     void start();
     void stop();

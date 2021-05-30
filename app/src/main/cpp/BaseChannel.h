@@ -2,6 +2,7 @@
 // Created by wxk on 2021/5/20.
 //
 #include "safe_queue.h"
+#include "log4c.h"
 extern "C"{
 #include <libavcodec/avcodec.h>
 #include <libavutil/time.h>
@@ -15,9 +16,12 @@ public:
     SafeQueue<AVFrame *> frames;
     bool isPlaying;
     AVCodecContext *codecContext = 0;
-    BaseChannel(int stream_index,AVCodecContext *codecContext)
+    AVRational time_base;//同步时间基
+
+    BaseChannel(int stream_index,AVCodecContext *codecContext,AVRational time_rational)
                 :stream_index(stream_index),
-                 codecContext(codecContext){
+                 codecContext(codecContext),
+                 time_base(time_rational){
         packets.setReleaseCallback(releaseAVPacket);
         frames.setReleaseCallback(releaseAVFrame);
     }

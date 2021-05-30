@@ -4,8 +4,8 @@
 
 #include "AudioChannel.h"
 
-AudioChannel::AudioChannel(int stream_index,AVCodecContext *codecContext)
-:BaseChannel(stream_index,codecContext){
+AudioChannel::AudioChannel(int stream_index,AVCodecContext *codecContext,AVRational time_rational)
+:BaseChannel(stream_index,codecContext,time_rational){
     out_channels = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_STEREO);
     out_sample_size = av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
     out_sample_rate = 44111;
@@ -179,6 +179,10 @@ int AudioChannel::getPCM() {
                                               (const uint8_t **) frame->data,
                                               frame->nb_samples);
         pcm_data_size = samples_per_channel * out_sample_size * out_channels;
+
+        //开始音视频同步，音频负责给时间
+
+        audio_time = frame->best_effort_timestamp * av_q2d(time_base);
         break;
     }
     av_frame_unref(frame); // 减1 = 0 释放成员指向的堆区
